@@ -28,5 +28,6 @@ While this is an awesome plugin, it doesn't leverage the capability of ZFS snaps
 5. Give the script a name.
 6. Click on the little cogwheel next to the script you just added and select "**EDIT SCRIPT**"
 7. Paste the whole script that you copied from Github. (Make sure to remove the placeholder line `#!/bin/bash` in the window !)
-8. Click "**SAVE CHANGES**" at the top of the script window.
-9. Optional: To run the script on a schedule, select a predefined schedule in the drop down or select "**Custom**" and use a tool like [Crontab Guru](https://crontab.guru/) to create the custom cron expression.
+8. Edit the variables in the beginning of the script according to your needs.
+9. Click "**SAVE CHANGES**" at the top of the script window.
+10. Optional: To run the script on a schedule, select a predefined schedule in the drop down or select "**Custom**" and use a tool like [Crontab Guru](https://crontab.guru/) to create the custom cron expression.
