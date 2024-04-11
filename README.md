@@ -7,7 +7,7 @@ Based on SpaceInvaderOne [Unraid_ZFS_Dataset_Snapshot_and_Replications](https://
 ## Key Points
 * Simple: It's reliable and simple. Exactly what we want for our backups
 * Fast: Since we are using rsync, only the modified or added files will be sent to your target folder resulting in fast backups.
-* Unraid alerts: Used built-in unraid alerts to keep us in the loop on what is happening with the backup runs.
+* Unraid alerts: Uses built-in unraid alerts to keep us in the loop on what is happening with the backup runs.
 * No container downtime: Allow backuping docker containers without downtime.
 * Perfect when paired with specialized backup tools like Kopia, Duplicacy, Borg or Restic. Sync to a target folder then add said folder in your backup software for versioning and/or cloud upload.
 * Single dependency: Only need the 'User Scripts' Unraid plugin.
