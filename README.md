@@ -2,7 +2,7 @@
 
 Simple and reliable script for Unraid that will create a ZFS snapshot for all the child dataset (read docker containers dataset) and will sync said snapshots to another path (for example on the array) in a mirror sync type using rsync. It also sends Unraid alerts regarding it's status. This is usefull to allow a simple no-downtime backup of Docker containers using a ZFS cache share. We can then use another backup software like [Kopia](https://kopia.io/), [Duplicacy](https://duplicacy.com/), [Borg](https://www.borgbackup.org/), [Restic](https://restic.net/), ... to manage the versioning and incremental backups to the cloud or other share.
 
-Based on SpaceInvaderOne [Unraid_ZFS_Dataset_Snapshot_and_Replications](https://github.com/SpaceinvaderOne/Unraid_ZFS_Dataset_Snapshot_and_Replications) script but mainly a simplified version for rsync only without the Sanoid dependency and with a couple more options/fixes added.
+Based on SpaceInvaderOne [Unraid_ZFS_Dataset_Snapshot_and_Replications](https://github.com/SpaceinvaderOne/Unraid_ZFS_Dataset_Snapshot_and_Replications) script but mainly a simplified and faster version using rsync only without the Sanoid dependency and with a couple more options/fixes added.
 
 ## Key Points
 * Simple: It's reliable and simple. Exactly what we want for our backups
