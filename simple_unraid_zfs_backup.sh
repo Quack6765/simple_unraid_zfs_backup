@@ -14,9 +14,9 @@ source_dataset="appdata"
 ## List of folders to exclude. In the format 'dataset name/relative path to dataset'. Path can have whitespace.
 ## Example: ("Plex-Media-Server/config" "jellyfin/cache" "anyotherdataset/folder")
 excluded_folders=("")
-## Target folder to sync the backup to.
+## Target folder to sync the backups to.
 target_folder=""
-## When to send a notification to Unraid. "all" for both success & failure, "error" for only failure or "none" for nothing at all.
+## When to send a notification to Unraid. "all" for both success & failure, "error" for only failure or "none" for never at all.
 notification_type="all" 
 
 # ----------------------------------------------------------
