@@ -3,9 +3,9 @@
 # https://github.com/Quack6765/simple_unraid_zfs_backup
 
 # Change the following variables accordingly
-## Run in test mode.
+## Run in test mode. 'true' or 'false'
 dry_run=false
-## Output more logs
+## Output more logs. 'true' or 'false'
 debug=false
 ## Source ZFS pool to sync from.
 source_pool="cache"
