@@ -1,6 +1,6 @@
 #!/bin/bash
 # Small script to backup an Unraid ZFS cache pool using ZFS snapshots and rsync
-# https://github.com/Quack6765/unraid_zfs_rsync_backup
+# https://github.com/Quack6765/simple_unraid_zfs_backup
 
 # Change the following variables accordingly
 ## Run in test mode.
@@ -49,7 +49,6 @@ notify() {
     echo "Total Runtime: $((duration / 60)) minutes and $((duration % 60)) seconds."
 }
 
-
 create_snapshot_dataset(){
     dataset=$1
     echo "Creating snapshot..."
@@ -95,18 +94,33 @@ destroy_snapshot_dataset(){
 }
 
 if [ ! -z $source_pool ] && [ ! -z $source_dataset ] && [ ! -z $target_folder ]; then
-    echo "Starting job..."
-    for dataset in $(zfs list -r -H -o name "${source_path}" | tail -n +2); do
+    zfs_match=$(zfs list -r -H -o name | grep -c "$source_path" )
+    if [ $zfs_match -eq 0 ]; then
+        echo "ERROR: Couldn't find dataset '$source_path'" >&2
+        ((error_count+=1))
+    elif [ $zfs_match -eq 1 ]; then
+        echo "Starting parent dataset sync job..."
         echo "-------------------------"
-        echo "Dataset: '$dataset'"
-        create_snapshot_dataset $dataset
-        rsync_dataset $dataset
-        destroy_snapshot_dataset $dataset
+        echo "Dataset: '$source_path'"
+        create_snapshot_dataset $source_path
+        rsync_dataset $source_path
+        destroy_snapshot_dataset $source_path
         echo "Status: Done !"
-    done
-    echo "-------------------------"
+        echo "-------------------------"
+    elif [ $zfs_match -gt 1 ]; then
+        echo "Starting children dataset sync job..."
+        for dataset in $(zfs list -r -H -o name "${source_path}" | tail -n +2); do
+            echo "-------------------------"
+            echo "Dataset: '$dataset'"
+            create_snapshot_dataset $dataset
+            rsync_dataset $dataset
+            destroy_snapshot_dataset $dataset
+            echo "Status: Done !"
+        done
+        echo "-------------------------"
+    fi
 else
-    echo "ERROR: Emtpy or missing parameter in script." >&2
+    echo "ERROR: Empty or missing parameter in script." >&2
     ((error_count+=1))
 fi
 notify
