@@ -24,11 +24,32 @@ notification_type="all"
 # ----------------------------------------------------------
 
 source_path="$source_pool"/"$source_dataset"
-snapshot_name="simple_unraid_zfs_backup"
+script_name="simple_unraid_zfs_backup"
+snapshot_name=$script_name
 error_count=0
 SECONDS=0
+github_url="https://raw.githubusercontent.com/Quack6765/${script_name}/main/${script_name}.sh"
+current_version="1.0"
+update_available=false
 
-trap '((error_count+=1))' ERR
+function trapping_error() {
+    ((error_count+=1))
+    echo "ERROR: $BASH_COMMAND"
+}
+
+trap 'trapping_error $?' ERR
+
+check_version() {
+    latest_script="/tmp/${script_name}.sh-latest"
+    wget $github_url -qO $latest_script
+
+    latest_version=$(grep "^current_version=\"[0-9]\.[0-9]\"$" "$latest_script" | grep -o "[0-9]\.[0-9]")
+    if [[ ! -z $latest_version ]] && [[ $current_version < $latest_version ]]; then
+        update_available=true
+    fi
+
+    rm $latest_script
+}
 
 notify() {
     if [ $error_count -gt 0 ]; then
@@ -37,16 +58,22 @@ notify() {
         message_severity="alert"
     else
         echo "OK: Completed without issue !"
-        message="Completed without issue !"
+        message="OK: Completed without issue !"
         message_severity="normal"
     fi
 
-    if [ "$notification_type" == "all" ] || ([ "$notification_type" == "error" ] && [ $error_count -gt 0 ]); then
-        /usr/local/emhttp/webGui/scripts/notify -s "Backup Notification" -d "$message" -i "$message_severity"
+    if [ $update_available = true ]; then
+        echo "INFO: Newer version of the script available on Github !"
+        message+="\nINFO: Newer version of the script available on Github !"
     fi
 
     duration=$SECONDS
-    echo "Total Runtime: $((duration / 60)) minutes and $((duration % 60)) seconds."
+    runtime="Total Runtime: $((duration / 60)) minutes and $((duration % 60)) seconds."
+    echo $runtime
+
+    if [ "$notification_type" == "all" ] || ([ "$notification_type" == "error" ] && [ $error_count -gt 0 ]); then
+        /usr/local/emhttp/webGui/scripts/notify -s "Backup Notification" -d "$message\n$runtime" -i "$message_severity"
+    fi
 }
 
 create_snapshot_dataset(){
@@ -93,11 +120,11 @@ destroy_snapshot_dataset(){
     zfs destroy "${dataset}@${snapshot_name}"
 }
 
+check_version
 if [ ! -z $source_pool ] && [ ! -z $source_dataset ] && [ ! -z $target_folder ]; then
-    zfs_match=$(zfs list -r -H -o name | grep -c "$source_path" )
+    zfs_match=$(zfs list -r -H -o name | grep -c "$source_path")
     if [ $zfs_match -eq 0 ]; then
         echo "ERROR: Couldn't find dataset '$source_path'" >&2
-        ((error_count+=1))
     elif [ $zfs_match -eq 1 ]; then
         echo "Starting parent dataset sync job..."
         echo "-------------------------"
@@ -121,6 +148,5 @@ if [ ! -z $source_pool ] && [ ! -z $source_dataset ] && [ ! -z $target_folder ];
     fi
 else
     echo "ERROR: Empty or missing parameter in script." >&2
-    ((error_count+=1))
 fi
 notify
