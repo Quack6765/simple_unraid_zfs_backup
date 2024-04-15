@@ -11,11 +11,14 @@ debug=false
 source_pool="cache"
 ## Source parent ZFS dataset to sync from.
 source_dataset="appdata"
+## List of containers that should be stopped before doing a ZFS snapshot. This is recommended for database containers like MySQL or Postgresql.
+## Example: ("mysql" "postgresql" "anyothercontainer")
+containers_to_stop=("")
 ## List of folders to exclude. In the format 'dataset name/relative path to dataset'. Path can have whitespace.
 ## Example: ("Plex-Media-Server/config" "jellyfin/cache" "anyotherdataset/folder")
-excluded_folders=("")
+excluded_folders=("Plex-Media-Server/config/Library/Application Support/Plex Media Server/Cache" "jellyfin/cache" "unmanic/cache")
 ## Target folder to sync the backups to.
-target_folder=""
+target_folder="/mnt/user/backups/appdata"
 ## When to send a notification to Unraid. "all" for both success & failure, "error" for only failure or "none" for never at all.
 notification_type="all" 
 
@@ -29,8 +32,9 @@ snapshot_name=$script_name
 error_count=0
 SECONDS=0
 github_url="https://raw.githubusercontent.com/Quack6765/${script_name}/main/${script_name}.sh"
-current_version="1.0"
+current_version="1.1"
 update_available=false
+container_stopped=""
 
 function trapping_error() {
     ((error_count+=1))
@@ -78,14 +82,28 @@ notify() {
 
 create_snapshot_dataset(){
     dataset=$1
+    dataset_name=$2
+
+    for container in ${containers_to_stop[@]}; do
+        if [[ "$container" == "$dataset_name" ]]; then
+            if [ $(docker ps -f name="^${container}$" | tail +2 | head -n1 | wc -l) -gt 0 ]; then
+                echo "Stopping container..."
+                docker stop $container > /dev/null
+                container_stopped=$container
+                sleep 5
+            else
+                echo "Container already stopped..."
+            fi
+        fi
+    done
+
     echo "Creating snapshot..."
     zfs snapshot "${dataset}@${snapshot_name}"
 }
 
 rsync_dataset(){
-
     dataset=$1
-    dataset_name=$(basename $dataset)
+    dataset_name=$2
 
     rsync_args=()
     rsync_args+=( -aph )
@@ -116,6 +134,12 @@ rsync_dataset(){
 }
 
 destroy_snapshot_dataset(){
+
+    if [ ! -z $container_stopped ]; then
+        echo "Starting container..."
+        docker start $container_stopped > /dev/null
+    fi
+
     echo "Removing snapshot..."
     zfs destroy "${dataset}@${snapshot_name}"
 }
@@ -139,8 +163,9 @@ if [ ! -z $source_pool ] && [ ! -z $source_dataset ] && [ ! -z $target_folder ];
         for dataset in $(zfs list -r -H -o name "${source_path}" | tail -n +2); do
             echo "-------------------------"
             echo "Dataset: '$dataset'"
-            create_snapshot_dataset $dataset
-            rsync_dataset $dataset
+            dataset_name=$(basename $dataset)
+            create_snapshot_dataset $dataset $dataset_name
+            rsync_dataset $dataset $dataset_name
             destroy_snapshot_dataset $dataset
             echo "Status: Done !"
         done
