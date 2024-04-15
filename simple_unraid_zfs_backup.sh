@@ -16,9 +16,9 @@ source_dataset="appdata"
 containers_to_stop=("")
 ## List of folders to exclude. In the format 'dataset name/relative path to dataset'. Path can have whitespace.
 ## Example: ("Plex-Media-Server/config" "jellyfin/cache" "anyotherdataset/folder")
-excluded_folders=("Plex-Media-Server/config/Library/Application Support/Plex Media Server/Cache" "jellyfin/cache" "unmanic/cache")
+excluded_folders=("")
 ## Target folder to sync the backups to.
-target_folder="/mnt/user/backups/appdata"
+target_folder=""
 ## When to send a notification to Unraid. "all" for both success & failure, "error" for only failure or "none" for never at all.
 notification_type="all" 
 
@@ -34,7 +34,7 @@ SECONDS=0
 github_url="https://raw.githubusercontent.com/Quack6765/${script_name}/main/${script_name}.sh"
 current_version="1.1"
 update_available=false
-container_stopped=""
+containers_stopped=()
 
 function trapping_error() {
     ((error_count+=1))
@@ -80,22 +80,31 @@ notify() {
     fi
 }
 
+stop_containers(){
+    for container in ${containers_to_stop[@]}; do
+        if [ $(docker ps -f name="^${container}$" | tail +2 | head -n1 | wc -l) -gt 0 ]; then
+            echo "Stopping container: '$container'..."
+            docker stop $container > /dev/null
+            containers_stopped+=("$container")
+        else
+            echo "Container already stopped: '$container'..."
+        fi
+    done
+    if [ ! -z $containers_stopped ]; then
+        sleep 5
+    fi
+}
+
+start_containers(){
+    for container in ${containers_stopped[@]}; do
+        echo "Starting container: '$container'..."
+        docker start $container > /dev/null
+    done
+}
+
 create_snapshot_dataset(){
     dataset=$1
     dataset_name=$2
-
-    for container in ${containers_to_stop[@]}; do
-        if [[ "$container" == "$dataset_name" ]]; then
-            if [ $(docker ps -f name="^${container}$" | tail +2 | head -n1 | wc -l) -gt 0 ]; then
-                echo "Stopping container..."
-                docker stop $container > /dev/null
-                container_stopped=$container
-                sleep 5
-            else
-                echo "Container already stopped..."
-            fi
-        fi
-    done
 
     echo "Creating snapshot..."
     zfs snapshot "${dataset}@${snapshot_name}"
@@ -134,12 +143,7 @@ rsync_dataset(){
 }
 
 destroy_snapshot_dataset(){
-
-    if [ ! -z $container_stopped ]; then
-        echo "Starting container..."
-        docker start $container_stopped > /dev/null
-    fi
-
+    dataset=$1
     echo "Removing snapshot..."
     zfs destroy "${dataset}@${snapshot_name}"
 }
@@ -150,6 +154,7 @@ if [ ! -z $source_pool ] && [ ! -z $source_dataset ] && [ ! -z $target_folder ];
     if [ $zfs_match -eq 0 ]; then
         echo "ERROR: Couldn't find dataset '$source_path'" >&2
     elif [ $zfs_match -eq 1 ]; then
+        stop_containers
         echo "Starting parent dataset sync job..."
         echo "-------------------------"
         echo "Dataset: '$source_path'"
@@ -159,6 +164,7 @@ if [ ! -z $source_pool ] && [ ! -z $source_dataset ] && [ ! -z $target_folder ];
         echo "Status: Done !"
         echo "-------------------------"
     elif [ $zfs_match -gt 1 ]; then
+        stop_containers
         echo "Starting children dataset sync job..."
         for dataset in $(zfs list -r -H -o name "${source_path}" | tail -n +2); do
             echo "-------------------------"
@@ -171,6 +177,7 @@ if [ ! -z $source_pool ] && [ ! -z $source_dataset ] && [ ! -z $target_folder ];
         done
         echo "-------------------------"
     fi
+    start_containers
 else
     echo "ERROR: Empty or missing parameter in script." >&2
 fi
