@@ -11,6 +11,9 @@ debug=false
 source_pool="cache"
 ## Source parent ZFS dataset to sync from.
 source_dataset="appdata"
+## List of containers that should be stopped before doing a ZFS snapshot. This is recommended for database containers like MySQL or Postgresql.
+## Example: ("mysql" "postgresql" "anyothercontainer")
+containers_to_stop=("")
 ## List of folders to exclude. In the format 'dataset name/relative path to dataset'. Path can have whitespace.
 ## Example: ("Plex-Media-Server/config" "jellyfin/cache" "anyotherdataset/folder")
 excluded_folders=("")
@@ -29,8 +32,9 @@ snapshot_name=$script_name
 error_count=0
 SECONDS=0
 github_url="https://raw.githubusercontent.com/Quack6765/${script_name}/main/${script_name}.sh"
-current_version="1.0"
+current_version="1.1"
 update_available=false
+containers_stopped=()
 
 function trapping_error() {
     ((error_count+=1))
@@ -76,16 +80,39 @@ notify() {
     fi
 }
 
+stop_containers(){
+    for container in ${containers_to_stop[@]}; do
+        if [ $(docker ps -f name="^${container}$" | tail +2 | head -n1 | wc -l) -gt 0 ]; then
+            echo "Stopping container: '$container'..."
+            docker stop $container > /dev/null
+            containers_stopped+=("$container")
+        else
+            echo "Container already stopped: '$container'..."
+        fi
+    done
+    if [ ! -z $containers_stopped ]; then
+        sleep 5
+    fi
+}
+
+start_containers(){
+    for container in ${containers_stopped[@]}; do
+        echo "Starting container: '$container'..."
+        docker start $container > /dev/null
+    done
+}
+
 create_snapshot_dataset(){
     dataset=$1
+    dataset_name=$2
+
     echo "Creating snapshot..."
     zfs snapshot "${dataset}@${snapshot_name}"
 }
 
 rsync_dataset(){
-
     dataset=$1
-    dataset_name=$(basename $dataset)
+    dataset_name=$2
 
     rsync_args=()
     rsync_args+=( -aph )
@@ -116,6 +143,7 @@ rsync_dataset(){
 }
 
 destroy_snapshot_dataset(){
+    dataset=$1
     echo "Removing snapshot..."
     zfs destroy "${dataset}@${snapshot_name}"
 }
@@ -126,6 +154,7 @@ if [ ! -z $source_pool ] && [ ! -z $source_dataset ] && [ ! -z $target_folder ];
     if [ $zfs_match -eq 0 ]; then
         echo "ERROR: Couldn't find dataset '$source_path'" >&2
     elif [ $zfs_match -eq 1 ]; then
+        stop_containers
         echo "Starting parent dataset sync job..."
         echo "-------------------------"
         echo "Dataset: '$source_path'"
@@ -135,17 +164,20 @@ if [ ! -z $source_pool ] && [ ! -z $source_dataset ] && [ ! -z $target_folder ];
         echo "Status: Done !"
         echo "-------------------------"
     elif [ $zfs_match -gt 1 ]; then
+        stop_containers
         echo "Starting children dataset sync job..."
         for dataset in $(zfs list -r -H -o name "${source_path}" | tail -n +2); do
             echo "-------------------------"
             echo "Dataset: '$dataset'"
-            create_snapshot_dataset $dataset
-            rsync_dataset $dataset
+            dataset_name=$(basename $dataset)
+            create_snapshot_dataset $dataset $dataset_name
+            rsync_dataset $dataset $dataset_name
             destroy_snapshot_dataset $dataset
             echo "Status: Done !"
         done
         echo "-------------------------"
     fi
+    start_containers
 else
     echo "ERROR: Empty or missing parameter in script." >&2
 fi
