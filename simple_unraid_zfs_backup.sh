@@ -36,7 +36,7 @@ snapshot_name="${script_name}_${timestamp}"
 error_count=0
 SECONDS=0
 github_url="https://raw.githubusercontent.com/Quack6765/${script_name}/main/${script_name}.sh"
-current_version="1.1"
+current_version="1.2"
 update_available=false
 
 # Enhanced logging function
