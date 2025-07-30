@@ -254,7 +254,7 @@ if [ ! -z "$source_pool" ] && [ ! -z "$source_dataset" ] && [ ! -z "$target_fold
         log "INFO" "Dataset: '$source_path'"
         create_snapshot_dataset $source_path
         start_container "$container"
-        rsync_dataset $source_path
+        rsync_dataset $source_path $dataset_name
         destroy_snapshot_dataset $source_path
         log "INFO" "Status: Done !"
         log "INFO" "-------------------------"
