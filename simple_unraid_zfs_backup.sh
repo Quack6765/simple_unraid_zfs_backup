@@ -36,7 +36,7 @@ snapshot_name="${script_name}_${timestamp}"
 error_count=0
 SECONDS=0
 github_url="https://raw.githubusercontent.com/Quack6765/${script_name}/main/${script_name}.sh"
-current_version="1.2"
+current_version="1.3"
 update_available=false
 
 # Enhanced logging function
@@ -151,7 +151,6 @@ start_container(){
 
 create_snapshot_dataset(){
     dataset=$1
-    dataset_name=$2
 
     # Dry-run logging
     if [ "$dry_run" = true ]; then
@@ -255,7 +254,7 @@ if [ ! -z "$source_pool" ] && [ ! -z "$source_dataset" ] && [ ! -z "$target_fold
         log "INFO" "Dataset: '$source_path'"
         create_snapshot_dataset $source_path
         start_container "$container"
-        rsync_dataset $source_path
+        rsync_dataset "$source_path" "$dataset_name"
         destroy_snapshot_dataset $source_path
         log "INFO" "Status: Done !"
         log "INFO" "-------------------------"
@@ -273,9 +272,9 @@ if [ ! -z "$source_pool" ] && [ ! -z "$source_dataset" ] && [ ! -z "$target_fold
                 fi
             done
             stop_container "$container"
-            create_snapshot_dataset $dataset $dataset_name
+            create_snapshot_dataset $dataset
             start_container "$container"
-            rsync_dataset $dataset $dataset_name
+            rsync_dataset "$dataset" "$dataset_name"
             destroy_snapshot_dataset $dataset
             log "INFO" "Status: Done !"
         done
